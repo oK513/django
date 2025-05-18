@@ -1,0 +1,188 @@
+import random
+
+# Player class to store stats
+class Player:
+    def __init__(self, name, class_type):
+        self.name = name
+        self.class_type = class_type
+        self.hp = 10
+        self.attack = 2
+        self.gold = 0
+        self.alive = True
+        # Class-specific bonuses
+        self.stuntman_bonus = 1 if class_type == "Stuntman" else 0
+        self.screenwriter_persuasion = class_type == "Screenwriter"
+        self.cinematographer_trap_bonus = 1 if class_type == "Cinematographer" else 0
+
+# Ally/Enemy class for NPCs
+class Character:
+    def __init__(self, name, hp, attack, special_ability=None):
+        self.name = name
+        self.hp = hp
+        self.attack = attack
+        self.special_ability = special_ability
+        self.alive = True
+
+# Combat simulation
+def combat(player, enemies, allies=None, can_flee=True):
+    print(f"\nCombat begins! {player.name}'s HP: {player.hp}")
+    while enemies and player.alive:
+        for enemy in enemies[:]:
+            if not enemy.alive:
+                continue
+            print(f"\n{enemy.name} (HP: {enemy.hp}) is attacking!")
+            action = input("Choose: (F)ight or (R)un? ").lower()
+            if action == 'r' and can_flee:
+                if random.randint(1, 6) >= 4:
+                    print("You flee, but take 1 damage!")
+                    player.hp -= 1
+                    if player.hp <= 0:
+                        player.alive = False
+                    return True
+                else:
+                    print("Failed to flee!")
+            # Player attack
+            target = enemy
+            roll = random.randint(1, 6)
+            damage = player.attack + player.stuntman_bonus if roll >= 4 else 0
+            if damage > 0:
+                print(f"You hit {target.name} for {damage} damage!")
+                target.hp -= damage
+                if target.hp <= 0:
+                    print(f"{target.name} is defeated!")
+                    target.alive = False
+                    enemies.remove(target)
+            else:
+                print("Your attack misses!")
+            # Enemy attack
+            if enemy.alive:
+                roll = random.randint(1, 6)
+                if roll >= 4:
+                    print(f"{enemy.name} hits you for {enemy.attack} damage!")
+                    player.hp -= enemy.attack
+                    if player.hp <= 0:
+                        player.alive = False
+                        print(f"{player.name} has fallen!")
+                        return False
+                else:
+                    print(f"{enemy.name}'s attack misses!")
+        # Allies attack
+        if allies:
+            for ally in allies:
+                if ally.alive and enemies:
+                    target = random.choice(enemies)
+                    roll = random.randint(1, 6)
+                    if roll >= 4:
+                        print(f"{ally.name} hits {target.name} for {ally.attack} damage!")
+                        target.hp -= ally.attack
+                        if target.hp <= 0:
+                            print(f"{target.name} is defeated!")
+                            target.alive = False
+                            enemies.remove(target)
+                    else:
+                        print(f"{ally.name}'s attack misses!")
+    return player.alive
+
+# Main game function
+def play_game():
+    # Character creation
+    name = input("Enter your name (or press Enter for 'Star'): ") or "Star"
+    print("Choose class: (1) Stuntman, (2) Screenwriter, (3) Cinematographer")
+    class_choice = input("Enter 1, 2, or 3: ")
+    class_types = {"1": "Stuntman", "2": "Screenwriter", "3": "Cinematographer"}
+    class_type = class_types.get(class_choice, "Stuntman")
+    player = Player(name, class_type)
+    print(f"\nWelcome, {player.name} the {player.class_type}! HP: {player.hp}, Attack: {player.attack}")
+
+    # Allies
+    hemsworth = Character("Chris Hemsworth", 12, 3)
+    robbie = Character("Margot Robbie", 8, 2, "steal")
+    allies = [hemsworth, robbie]
+    trust = 0
+    print("\n--- Tinsel Town Quest: Rise to Stardom ---")
+
+    # Scene 1: Audition Ambush
+    print("\nScene 1: The Audition Ambush")
+    print("At an audition, you're ambushed by two paparazzi drones!")
+    drones = [Character("Drone 1", 4, 1), Character("Drone 2", 4, 1)]
+    if not combat(player, drones):
+        print("Game Over: You were overwhelmed by the paparazzi!")
+        return
+
+    # Scene 2: Meeting the Allies
+    print("\nScene 2: Meeting the Allies")
+    print("You stumble into a bar where Chris Hemsworth and Margot Robbie are hiding.")
+    print("Options: (A) 'I’m here to fight DiCaprio!'")
+    print("(B) 'What’s in it for me?'")
+    if player.screenwriter_persuasion:
+        print("(C) 'I wrote a script to expose him!'")
+    choice = input("Choose A, B, or C: ").upper()
+    if choice == "A":
+        print("Hemsworth nods approvingly.")
+        trust += 1
+    elif choice == "B":
+        print("Robbie smirks and tosses you a coin.")
+        player.gold += 1
+    elif choice == "C" and player.screenwriter_persuasion:
+        print("Both allies are impressed!")
+        trust += 1
+        player.gold += 1
+    else:
+        print("They look unimpressed.")
+
+    # Scene 3: Studio Infiltration
+    print("\nScene 3: The Studio Infiltration")
+    print("A rigged Oscar statue shoots lasers!")
+    trap = [Character("Oscar Trap", 6, 2)]
+    print("Options: (F)ight, (R)obbie disables, (H)emsworth smashes")
+    action = input("Choose F, R, or H: ").upper()
+    if action == "R":
+        if random.randint(1, 6) >= 4:
+            print("Robbie disables the trap!")
+        else:
+            print("Robbie fails! You must fight.")
+            if not combat(player, trap, allies):
+                print("Game Over: The trap was too much!")
+                return
+    elif action == "H":
+        print("Hemsworth smashes the trap but takes 1 damage!")
+        hemsworth.hp -= 1
+        if hemsworth.hp <= 0:
+            hemsworth.alive = False
+            allies.remove(hemsworth)
+    else:
+        if player.cinematographer_trap_bonus:
+            print("You spot a weakness in the trap!")
+            trap[0].hp -= player.cinematographer_trap_bonus
+        if not combat(player, trap, allies):
+            print("Game Over: The trap was too much!")
+            return
+
+    # Scene 4: Showdown with DiCaprio
+    print("\nFinal Scene: Showdown with DiCaprio")
+    print("Leonardo DiCaprio offers you a deal: join him for fame and 5 gold.")
+    dicaprio = Character("Leonardo DiCaprio", 10, 2, "charm")
+    choice = input("Accept deal (Y) or Fight (N)? ").upper()
+    if choice == "Y":
+        print("You join DiCaprio, ruling Tinsel Town as a villain. The end.")
+        return
+    print("You fight DiCaprio!")
+    enemies = [dicaprio]
+    while enemies and player.alive:
+        if dicaprio.alive and dicaprio.special_ability == "charm":
+            roll = random.randint(1, 6)
+            if roll >= 5 and allies:
+                charmed = random.choice(allies)
+                print(f"DiCaprio charms {charmed.name}, who skips their turn!")
+                allies.remove(charmed)
+        if not combat(player, enemies, allies):
+            print("Game Over: DiCaprio was too powerful!")
+            return
+        if 'charmed' in locals():
+            allies.append(charmed)  # Rejoin after charm wears off
+    print("\nVictory! DiCaprio is defeated, and Tinsel Town is saved!")
+    print(f"Final stats: HP: {player.hp}, Gold: {player.gold}, Trust: {trust}")
+
+# Run the game
+if __name__ == "__main__":
+    play_game()
